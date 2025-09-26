@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# environment variables
+.env
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / system files
+.DS_Store
+
+# optional cache
+.cache/
+dist/
+build/
+
+# editor folders/files
+.vscode/
+.idea/
+*.swp
