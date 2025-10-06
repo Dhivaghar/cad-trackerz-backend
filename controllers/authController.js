@@ -88,3 +88,40 @@ exports.login = (req, res) => {
     res.json({ message: "Login successful", user: { id: user.id, name: user.full_name, salary: user.salary, email: user.email } });
   });
 };
+
+exports.updateSalary = (req, res) => {
+  const { user_id, salary } = req.body;
+  if (!user_id || !salary) return res.status(400).json({ message: "Missing fields" });
+  db.query("UPDATE users SET salary = ? WHERE id = ?", [salary, user_id], (err) => {
+    if (err) return res.status(500).json({ message: "Database error" });
+    res.json({ message: "Salary updated" });
+  });
+};
+
+exports.reloadSalary = (req, res) => {
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ message: "User ID required" });
+
+  // Step 1: Create a new salary cycle
+  const createCycleSql = "INSERT INTO salary_cycles (user_id) VALUES (?)";
+  db.query(createCycleSql, [user_id], (err, result) => {
+    if (err) {
+      console.error("Error creating new cycle:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    const newCycleId = result.insertId;
+
+    // Step 2: Update user's current_cycle_id
+    const updateUserSql = "UPDATE users SET current_cycle_id = ? WHERE id = ?";
+    db.query(updateUserSql, [newCycleId, user_id], (err2) => {
+      if (err2) {
+        console.error("Error updating user cycle:", err2);
+        return res.status(500).json({ message: "Database error" });
+      }
+
+      res.json({ message: "Salary reloaded successfully", cycle_id: newCycleId });
+    });
+  });
+};
+

@@ -15,4 +15,11 @@ router.post("/expenses/add", expenseController.addExpense);
 router.get("/expenses/:user_id", expenseController.getUserExpenses);
 router.delete("/expenses/:id", expenseController.deleteExpense);
 
+router.get("/expenses/summary/:user_id", expenseController.getExpenseSummary);
+
+router.post("/user/update-salary", authController.updateSalary);
+
+router.post("/user/reload-salary", authController.reloadSalary);
+
+
 module.exports = router;
