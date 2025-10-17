@@ -9,13 +9,17 @@ const db = mysql.createConnection({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   ssl: {
-    rejectUnauthorized: false
+    ca: fs.readFileSync("ca.pem")
   }
 });
 
 db.connect((err) => {
-  if (err) throw err;
-  console.log("✅ Database connected!");
+  if (err) {
+    console.error("❌ Database connection failed:", err.message);
+  }
+  else {
+    console.log("✅ Database connected successfully!");
+  }
 });
 
 module.exports = db;
