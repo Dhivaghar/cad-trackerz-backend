@@ -111,4 +111,20 @@ exports.getExpenseSummary = (req, res) => {
   });
 };
 
+exports.getSalaryCycles = (req, res) => {
+  const user_id = req.params.user_id;
+  db.query("SELECT * FROM salary_cycles WHERE user_id = ? ORDER BY started_at DESC", [user_id], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Database error" });
+    res.json(rows);
+  });
+};
+
+exports.getAllExpenses = (req, res) => {
+  const user_id = req.params.user_id;
+  db.query("SELECT * FROM expenses WHERE user_id = ? ORDER BY expense_date DESC", [user_id], (err, rows) => {
+    if (err) return res.status(500).json({ message: "Database error" });
+    res.json(rows);
+  });
+};
+
 

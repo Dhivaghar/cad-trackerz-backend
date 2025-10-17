@@ -21,5 +21,7 @@ router.post("/user/update-salary", authController.updateSalary);
 
 router.post("/user/reload-salary", authController.reloadSalary);
 
+router.get("/cycles/:user_id", expenseController.getSalaryCycles);
+router.get("/expenses/all/:user_id", expenseController.getAllExpenses);
 
 module.exports = router;
