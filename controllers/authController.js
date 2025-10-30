@@ -1,9 +1,33 @@
 const db = require("../db");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
+const fetch = require("node-fetch"); // ✅ for sending push notifications
 
 let otpStore = {};
 
+// 🔔 Utility: Send Push Notification via Expo
+async function sendPushNotification(expoToken, title, body) {
+  if (!expoToken) return;
+  try {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: expoToken,
+        sound: "default",
+        title,
+        body,
+      }),
+    });
+  } catch (err) {
+    console.error("Error sending push notification:", err.message);
+  }
+}
+
+// ✉️ Send OTP
 exports.sendOtp = async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ message: "Email required" });
@@ -30,10 +54,12 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
+// ✅ Verify OTP & Register User
 exports.verifyOtp = async (req, res) => {
-  const { fullName, email, salary, password, otp } = req.body;
+  const { fullName, email, salary, password, otp, expo_token } = req.body;
 
-  if (!otpStore[email]) return res.status(400).json({ message: "OTP expired or not sent" });
+  if (!otpStore[email])
+    return res.status(400).json({ message: "OTP expired or not sent" });
   if (otpStore[email].toString() !== otp.toString())
     return res.status(400).json({ message: "Invalid OTP" });
 
@@ -45,10 +71,10 @@ exports.verifyOtp = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     db.query(
-      "INSERT INTO users (full_name, email, salary, password) VALUES (?, ?, ?, ?)",
-      [fullName, email, salary, hashedPassword],
-      async (err) => {
-        if (err) return res.status(500).json({ message: "DB Error", err });
+      "INSERT INTO users (full_name, email, salary, password, expo_token) VALUES (?, ?, ?, ?, ?)",
+      [fullName, email, salary, hashedPassword, expo_token || null],
+      async (err2) => {
+        if (err2) return res.status(500).json({ message: "DB Error", err2 });
 
         delete otpStore[email];
 
@@ -65,14 +91,20 @@ exports.verifyOtp = async (req, res) => {
           text: `Hi ${fullName},\n\nSignup successful! Welcome to our app.`,
         });
 
+        // ✅ Optional: send welcome push notification
+        if (expo_token) {
+          await sendPushNotification(expo_token, "Welcome 🎉", "Signup successful! Enjoy using the app.");
+        }
+
         res.json({ message: "User registered successfully" });
       }
     );
   });
 };
 
+// 🔐 Login User
 exports.login = (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, expo_token } = req.body;
   if (!email || !password)
     return res.status(400).json({ message: "All fields required" });
 
@@ -85,19 +117,45 @@ exports.login = (req, res) => {
     const validPass = await bcrypt.compare(password, user.password);
     if (!validPass) return res.status(401).json({ message: "Invalid credentials" });
 
-    res.json({ message: "Login successful", user: { id: user.id, name: user.full_name, salary: user.salary, email: user.email } });
+    // ✅ Save Expo token for push notifications
+    if (expo_token) {
+      db.query("UPDATE users SET expo_token = ? WHERE id = ?", [expo_token, user.id]);
+    }
+
+    // ✅ Optional: send login notification
+    if (user.expo_token || expo_token) {
+      await sendPushNotification(
+        expo_token || user.expo_token,
+        "Login Successful ✅",
+        `Welcome back, ${user.full_name}!`
+      );
+    }
+
+    res.json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        name: user.full_name,
+        salary: user.salary,
+        email: user.email,
+      },
+    });
   });
 };
 
+// 💰 Update Salary
 exports.updateSalary = (req, res) => {
   const { user_id, salary } = req.body;
-  if (!user_id || !salary) return res.status(400).json({ message: "Missing fields" });
+  if (!user_id || !salary)
+    return res.status(400).json({ message: "Missing fields" });
+
   db.query("UPDATE users SET salary = ? WHERE id = ?", [salary, user_id], (err) => {
     if (err) return res.status(500).json({ message: "Database error" });
     res.json({ message: "Salary updated" });
   });
 };
 
+// 🔄 Reload Salary Cycle
 exports.reloadSalary = (req, res) => {
   const { user_id } = req.body;
   if (!user_id) return res.status(400).json({ message: "User ID required" });
@@ -124,4 +182,3 @@ exports.reloadSalary = (req, res) => {
     });
   });
 };
-

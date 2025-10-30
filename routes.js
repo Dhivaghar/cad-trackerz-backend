@@ -4,6 +4,7 @@ const router = express.Router();
 // Controllers
 const authController = require("./controllers/authController");
 const expenseController = require("./controllers/expenseController");
+const notificationController = require("./controllers/notificationController");
 
 // Auth Routes
 router.post("/send-otp", authController.sendOtp);
@@ -23,5 +24,8 @@ router.post("/user/reload-salary", authController.reloadSalary);
 
 router.get("/cycles/:user_id", expenseController.getSalaryCycles);
 router.get("/expenses/all/:user_id", expenseController.getAllExpenses);
+
+router.get("/notifications/:user_id", notificationController.getUserNotifications);
+router.post("/notifications/add", notificationController.addNotification);
 
 module.exports = router;
