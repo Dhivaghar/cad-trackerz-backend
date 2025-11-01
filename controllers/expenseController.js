@@ -1,5 +1,4 @@
 const db = require("../db");
-const fetch = require("node-fetch");
 
 // ➕ Add a new expense
 exports.addExpense = (req, res) => {
