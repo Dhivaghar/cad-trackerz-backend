@@ -1,7 +1,6 @@
 const db = require("../db");
 const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
-const fetch = require("node-fetch");
 
 let otpStore = {};
 
