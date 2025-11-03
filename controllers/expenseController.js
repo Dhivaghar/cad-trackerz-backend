@@ -38,25 +38,32 @@ exports.addExpense = (req, res) => {
         `;
 
         db.query(salaryQuery, [user_id], (err3, result3) => {
-          // if (err3)
-          //   return res.status(500).json({ message: "Error fetching salary info" });
+  if (err3) {
+    console.error("Salary query error:", err3);
+    return res.status(500).json({ message: "Error fetching salary info" });
+  }
 
-          const { salary, total_spent } = result3[0];
-          const remaining = salary - total_spent;
-          const percentUsed = ((total_spent / salary) * 100).toFixed(2);
+  if (!result3 || result3.length === 0) {
+    console.error("No salary data found for user", user_id);
+    return res.status(500).json({ message: "No salary data found for user" });
+  }
 
-          // 🔹 Step 4: Return the salary usage details
-          res.status(201).json({
-            message: "Expense added successfully",
-            expenseId: result.insertId,
-            salary,
-            total_spent,
-            remaining,
-            percentUsed
-          });
-          // ✅ Trigger salary usage check and notification
-          checkSalaryAndNotify(user_id);
-        });
+  const { salary, total_spent } = result3[0];
+  const remaining = salary - total_spent;
+  const percentUsed = ((total_spent / salary) * 100).toFixed(2);
+
+  res.status(201).json({
+    message: "Expense added successfully",
+    expenseId: result.insertId,
+    salary,
+    total_spent,
+    remaining,
+    percentUsed
+  });
+
+  checkSalaryAndNotify(user_id);
+});
+
       }
     );
   });
