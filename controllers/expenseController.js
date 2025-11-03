@@ -38,8 +38,8 @@ exports.addExpense = (req, res) => {
         `;
 
         db.query(salaryQuery, [user_id], (err3, result3) => {
-          if (err3)
-            return res.status(500).json({ message: "Error fetching salary info" });
+          // if (err3)
+          //   return res.status(500).json({ message: "Error fetching salary info" });
 
           const { salary, total_spent } = result3[0];
           const remaining = salary - total_spent;
