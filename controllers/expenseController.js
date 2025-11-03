@@ -20,14 +20,46 @@ exports.addExpense = (req, res) => {
       INSERT INTO expenses (user_id, amount, budget_type, category, note, expense_date, cycle_id)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    db.query(insertQuery, [user_id, amount, budget_type, category, note, expense_date, cycle_id], (err2, result) => {
-      if (err2) return res.status(500).json({ message: "Database error" });
+    db.query(
+      insertQuery,
+      [user_id, amount, budget_type, category, note, expense_date, cycle_id],
+      (err2, result) => {
+        if (err2) return res.status(500).json({ message: "Database error" });
 
-      res.status(201).json({ message: "Expense added successfully", expenseId: result.insertId });
-      checkSalaryAndNotify(user_id);
-    });
+        // 🔹 Step 3: Fetch salary and total spent for that cycle
+        const salaryQuery = `
+          SELECT 
+            sc.salary,
+            COALESCE(SUM(e.amount), 0) AS total_spent
+          FROM salary_cycles sc
+          JOIN users u ON sc.id = u.current_cycle_id
+          LEFT JOIN expenses e ON e.user_id = u.id AND e.cycle_id = u.current_cycle_id
+          WHERE u.id = ?
+        `;
+
+        db.query(salaryQuery, [user_id], (err3, result3) => {
+          if (err3 || result3.length === 0)
+            return res.status(500).json({ message: "Error fetching salary info" });
+
+          const { salary, total_spent } = result3[0];
+          const remaining = salary - total_spent;
+          const percentUsed = ((total_spent / salary) * 100).toFixed(2);
+
+          // 🔹 Step 4: Return the salary usage details
+          res.status(201).json({
+            message: "Expense added successfully",
+            expenseId: result.insertId,
+            salary,
+            total_spent,
+            remaining,
+            percentUsed
+          });
+        });
+      }
+    );
   });
 };
+
 
 // ⚙️ Helper - Check Salary Usage and Send Notifications
 function checkSalaryAndNotify(user_id) {
