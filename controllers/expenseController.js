@@ -54,6 +54,8 @@ exports.addExpense = (req, res) => {
             remaining,
             percentUsed
           });
+          // ✅ Trigger salary usage check and notification
+          checkSalaryAndNotify(user_id);
         });
       }
     );
