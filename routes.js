@@ -5,7 +5,7 @@ const router = express.Router();
 const authController = require("./controllers/authController");
 const expenseController = require("./controllers/expenseController");
 const notificationController = require("./controllers/notificationController");
-const { generateSuggestion } = require("../controllers/aiController");
+const { generateSuggestion } = require("./controllers/aiController");
 
 // Auth Routes
 router.post("/send-otp", authController.sendOtp);
