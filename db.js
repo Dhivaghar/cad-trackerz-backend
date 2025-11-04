@@ -1,27 +1,27 @@
 require("dotenv").config();
-const mysql = require("mysql2");
+const mysql = require("mysql2/promise");
 const fs = require("fs");
 
-const connection = mysql.createConnection({
+const db = mysql.createPool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl: { ca: fs.readFileSync("ca.pem") },
+  ssl: {
+    ca: fs.readFileSync("ca.pem"),
+  },
+  connectionLimit: 10,
 });
 
-// ✅ For callback-based queries (old code)
-connection.connect((err) => {
-  if (err) {
-    console.error("❌ Database connection failed:", err.message);
-  } else {
+(async () => {
+  try {
+    const connection = await db.getConnection();
     console.log("✅ Database connected successfully!");
+    connection.release();
+  } catch (err) {
+    console.error("❌ Database connection failed:", err.message);
   }
-});
+})();
 
-// ✅ Promise wrapper for async/await (new AI feature)
-const promiseConnection = connection.promise();
-
-// Export both
-module.exports = { connection, promiseConnection };
+module.exports = db;
