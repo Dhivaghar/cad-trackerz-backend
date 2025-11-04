@@ -1,4 +1,3 @@
-// controllers/aiController.js
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 const db = require("../db");
@@ -31,22 +30,26 @@ exports.generateSuggestion = async (req, res) => {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
-      You are a personal finance assistant for the CAD TRACKERZ app.
-      Analyze the user's spending patterns for the last two months and give 2-3 simple, friendly tips
-      on how they can save money next month.
+      You are an AI financial assistant for the CAD TRACKERZ app.
 
-      Example format:
-      - You spent ₹X more on Food Delivery last month than usual. Try cooking at home more often.
-      - Your entertainment spending is rising. You could save ₹Y if you set a monthly cap.
+      Analyze the user's last 2 months of spending and identify the categories 
+      where the spending is high or increasing.
 
-      Here’s the spending data:
+      Give 2 to 3 short, direct suggestions in the following format:
+      - You spent too much on <category>. Try reducing it to save more money.
+      - Your <category> expenses are higher than before. You can avoid that to save more.
+      - You can limit your <category> spending next month to save extra.
+
+      Keep it short, friendly, and practical. Do not include extra explanations or emojis.
+
+      Here’s the user's spending data:
       ${JSON.stringify(expenses, null, 2)}
     `;
 
     const result = await model.generateContent(prompt);
     const suggestion = result.response.text();
 
-    // Step 3: Insert suggestion into table
+    // Step 3: Save the suggestion
     await db.query(
       "INSERT INTO ai_suggestions (user_id, suggestion) VALUES (?, ?)",
       [user_id, suggestion]
@@ -55,7 +58,6 @@ exports.generateSuggestion = async (req, res) => {
     console.log("✅ AI Suggestion saved for user:", user_id);
     console.log("Suggestion Text:", suggestion);
 
-    // Step 4: Send back response
     res.status(200).json({
       success: true,
       message: "AI suggestion generated and saved successfully",
