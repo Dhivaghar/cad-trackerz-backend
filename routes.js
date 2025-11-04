@@ -5,6 +5,7 @@ const router = express.Router();
 const authController = require("./controllers/authController");
 const expenseController = require("./controllers/expenseController");
 const notificationController = require("./controllers/notificationController");
+const { generateSuggestion } = require("../controllers/aiController");
 
 // Auth Routes
 router.post("/send-otp", authController.sendOtp);
@@ -27,5 +28,7 @@ router.get("/expenses/all/:user_id", expenseController.getAllExpenses);
 
 router.get("/notifications/:user_id", notificationController.getUserNotifications);
 router.post("/notifications/add", notificationController.addNotification);
+
+router.post("/generate-suggestion", generateSuggestion);
 
 module.exports = router;
