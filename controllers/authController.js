@@ -14,12 +14,7 @@ async function sendPushNotification(expoToken, title, body) {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        to: expoToken,
-        sound: "default",
-        title,
-        body,
-      }),
+      body: JSON.stringify({ to: expoToken, sound: "default", title, body }),
     });
   } catch (err) {
     console.error("Error sending push notification:", err.message);
@@ -62,73 +57,72 @@ exports.verifyOtp = async (req, res) => {
   if (otpStore[email].toString() !== otp.toString())
     return res.status(400).json({ message: "Invalid OTP" });
 
-  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, result) => {
-    if (err) return res.status(500).json({ message: "DB Error", err });
-
-    if (result.length > 0)
+  try {
+    // Check if user already exists
+    const [existingUser] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    if (existingUser.length > 0)
       return res.status(400).json({ message: "Email already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Step 1: Insert new user
-    db.query(
+    const [userResult] = await db.query(
       "INSERT INTO users (full_name, email, salary, password, expo_token) VALUES (?, ?, ?, ?, ?)",
-      [fullName, email, salary, hashedPassword, expo_token || null],
-      async (err2, userResult) => {
-        if (err2) return res.status(500).json({ message: "DB Error", err2 });
-
-        const userId = userResult.insertId;
-
-        // Step 2: Create initial salary cycle with user’s salary
-        db.query(
-          "INSERT INTO salary_cycles (user_id, salary) VALUES (?, ?)",
-          [userId, salary],
-          (err3, cycleResult) => {
-            if (err3) console.error("Error creating initial salary cycle:", err3);
-            else {
-              const cycleId = cycleResult.insertId;
-              db.query("UPDATE users SET current_cycle_id = ? WHERE id = ?", [
-                cycleId,
-                userId,
-              ]);
-            }
-          }
-        );
-
-        delete otpStore[email];
-
-        // Step 3: Send welcome email
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        });
-
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: "Welcome to Our App!",
-          text: `Hi ${fullName},\n\nSignup successful! Welcome aboard.`,
-        });
-
-        // Step 4: Optional push notification
-        if (expo_token) {
-          await sendPushNotification(expo_token, "Welcome 🎉", "Signup successful! Enjoy using the app.");
-        }
-
-        res.json({ message: "User registered successfully" });
-      }
+      [fullName, email, salary, hashedPassword, expo_token || null]
     );
-  });
+    const userId = userResult.insertId;
+
+    // Step 2: Create initial salary cycle
+    const [cycleResult] = await db.query(
+      "INSERT INTO salary_cycles (user_id, salary) VALUES (?, ?)",
+      [userId, salary]
+    );
+    const cycleId = cycleResult.insertId;
+
+    await db.query("UPDATE users SET current_cycle_id = ? WHERE id = ?", [
+      cycleId,
+      userId,
+    ]);
+
+    delete otpStore[email];
+
+    // Step 3: Send welcome email
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Welcome to CAD Trackerz!",
+      text: `Hi ${fullName},\n\nSignup successful! Welcome aboard.`,
+    });
+
+    // Step 4: Optional push notification
+    if (expo_token) {
+      await sendPushNotification(
+        expo_token,
+        "Welcome 🎉",
+        "Signup successful! Enjoy using the app."
+      );
+    }
+
+    res.json({ message: "User registered successfully" });
+  } catch (err) {
+    console.error("❌ Registration error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 // 🔐 Login User
-exports.login = (req, res) => {
+exports.login = async (req, res) => {
   const { email, password, expo_token } = req.body;
   if (!email || !password)
     return res.status(400).json({ message: "All fields required" });
 
-  db.query("SELECT * FROM users WHERE email = ?", [email], async (err, results) => {
-    if (err) return res.status(500).json({ message: "Server error" });
+  try {
+    const [results] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
     if (results.length === 0)
       return res.status(401).json({ message: "User not found" });
 
@@ -137,7 +131,7 @@ exports.login = (req, res) => {
     if (!validPass) return res.status(401).json({ message: "Invalid credentials" });
 
     if (expo_token) {
-      db.query("UPDATE users SET expo_token = ? WHERE id = ?", [expo_token, user.id]);
+      await db.query("UPDATE users SET expo_token = ? WHERE id = ?", [expo_token, user.id]);
     }
 
     if (user.expo_token || expo_token) {
@@ -157,38 +151,48 @@ exports.login = (req, res) => {
         email: user.email,
       },
     });
-  });
+  } catch (err) {
+    console.error("❌ Login error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 // 💰 Update Salary
-exports.updateSalary = (req, res) => {
+exports.updateSalary = async (req, res) => {
   const { user_id, salary } = req.body;
   if (!user_id || !salary)
     return res.status(400).json({ message: "Missing fields" });
 
-  db.query("UPDATE users SET salary = ? WHERE id = ?", [salary, user_id], (err) => {
-    if (err) return res.status(500).json({ message: "Database error" });
+  try {
+    await db.query("UPDATE users SET salary = ? WHERE id = ?", [salary, user_id]);
     res.json({ message: "Salary updated" });
-  });
+  } catch (err) {
+    res.status(500).json({ message: "Database error" });
+  }
 };
 
 // 🔄 Reload Salary Cycle
-exports.reloadSalary = (req, res) => {
+exports.reloadSalary = async (req, res) => {
   const { user_id } = req.body;
   if (!user_id) return res.status(400).json({ message: "User ID required" });
 
-  db.query("SELECT salary FROM users WHERE id = ?", [user_id], (err, result) => {
-    if (err || result.length === 0)
-      return res.status(500).json({ message: "Error fetching user salary" });
+  try {
+    const [result] = await db.query("SELECT salary FROM users WHERE id = ?", [user_id]);
+    if (result.length === 0)
+      return res.status(404).json({ message: "User not found" });
 
     const userSalary = result[0].salary;
+    const [result2] = await db.query(
+      "INSERT INTO salary_cycles (user_id, salary) VALUES (?, ?)",
+      [user_id, userSalary]
+    );
 
-    db.query("INSERT INTO salary_cycles (user_id, salary) VALUES (?, ?)", [user_id, userSalary], (err2, result2) => {
-      if (err2) return res.status(500).json({ message: "Database error" });
+    const newCycleId = result2.insertId;
+    await db.query("UPDATE users SET current_cycle_id = ? WHERE id = ?", [newCycleId, user_id]);
 
-      const newCycleId = result2.insertId;
-      db.query("UPDATE users SET current_cycle_id = ? WHERE id = ?", [newCycleId, user_id]);
-      res.json({ message: "Salary reloaded successfully", cycle_id: newCycleId });
-    });
-  });
+    res.json({ message: "Salary reloaded successfully", cycle_id: newCycleId });
+  } catch (err) {
+    console.error("❌ Reload error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
