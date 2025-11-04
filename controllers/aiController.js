@@ -28,7 +28,7 @@ exports.generateSuggestion = async (req, res) => {
     }
 
     // Step 2: Generate AI Suggestion
-    const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash-001" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
       You are a personal finance assistant for the CAD TRACKERZ app.
