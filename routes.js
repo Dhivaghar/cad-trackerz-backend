@@ -30,5 +30,7 @@ router.get("/notifications/:user_id", notificationController.getUserNotification
 router.post("/notifications/add", notificationController.addNotification);
 
 router.post("/generate-suggestion", generateSuggestion);
+router.get("/get-suggestions/:user_id", getAllSuggestions);
+
 
 module.exports = router;

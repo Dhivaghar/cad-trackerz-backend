@@ -67,3 +67,23 @@ exports.generateSuggestion = async (req, res) => {
     res.status(500).json({ message: "Error generating AI suggestion" });
   }
 };
+
+// 📜 Get all saved suggestions for a user
+exports.getAllSuggestions = async (req, res) => {
+  const { user_id } = req.params;
+
+  if (!user_id) {
+    return res.status(400).json({ message: "Missing user_id" });
+  }
+
+  try {
+    const [rows] = await db.query(
+      "SELECT id, suggestion, created_at FROM ai_suggestions WHERE user_id = ? ORDER BY created_at DESC",
+      [user_id]
+    );
+    res.status(200).json({ success: true, suggestions: rows });
+  } catch (err) {
+    console.error("Fetch AI suggestions error:", err);
+    res.status(500).json({ message: "Error fetching AI suggestions" });
+  }
+};
